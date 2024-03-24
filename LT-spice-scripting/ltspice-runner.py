@@ -3,6 +3,25 @@ import os
 import pprint
 import time
 
+def get_original_asc_text(asc_file_path:str=None):
+    with open(asc_file_path, 'r') as file:
+        data = file.read()
+    return data
+
+def set_to_original_asc_text(asc_file_path:str=None, data:str=None):
+    with open(asc_file_path, 'w') as file:
+        file.write(data)
+
+def update_place_asc_placeholder(asc_file_path:str=None, place_holder_text:str = None, replacement_text:str = None):
+    with open(asc_file_path, 'r') as file:
+        data = file.read()
+    
+    # Find and replace specific text
+    new_data = data.replace(place_holder_text, replacement_text)
+    
+    with open(asc_file_path, 'w') as file:
+        file.write(new_data)
+
 def parse_LTspice_data(data):
     header_lines = []
     for line in data.split("\n"):
@@ -88,16 +107,17 @@ def find_peak_of_each_value(header_dict:dict, value_lines:list[list], is_absolut
 LT_SPICE_EXECUTABLE_PATH = "C:/Program Files/LTC/LTspiceXVII/XVIIx64.exe" #probable path to LTspice executable
 SCRIPT_PATH = os.path.abspath(__file__)
 LTSPICE_ASC_PATH = os.path.join(os.path.dirname(SCRIPT_PATH), "AC_R_circuit/AC_R_circuit.asc")
-LTSPICE_NET_PATH = os.path.join(os.path.dirname(SCRIPT_PATH), "AC_R_circuit/AC_R_circuit.net") #may not be existent at this point
-LTSPICE_RAW_DATA_PATH = os.path.join(os.path.dirname(SCRIPT_PATH), "AC_R_circuit/AC_R_circuit.raw")
+
+ORIGINAL_ASC_TEXT = get_original_asc_text(asc_file_path=LTSPICE_ASC_PATH)
+update_place_asc_placeholder(asc_file_path=LTSPICE_ASC_PATH, place_holder_text = "<sine_voltage>", replacement_text = "10")
 
 create_netlist_line = [LT_SPICE_EXECUTABLE_PATH, "-netlist", LTSPICE_ASC_PATH] # -netlist flag to generate netlist
-run_simulation_line = [LT_SPICE_EXECUTABLE_PATH, "-b -ascii ", LTSPICE_NET_PATH] # -b flag to run simulation
-
-#update_asc_file(asc_path= LTSPICE_ASC_PATH, sine_amplitude = "15")
-
 subprocess.run(create_netlist_line)
+LTSPICE_NET_PATH = os.path.join(os.path.dirname(SCRIPT_PATH), "AC_R_circuit/AC_R_circuit.net")
+
+run_simulation_line = [LT_SPICE_EXECUTABLE_PATH, "-b -ascii ", LTSPICE_NET_PATH] # -b flag to run simulation without ui. To see the ui, replace with -Run. -ascii flag to generate ascii output raw file
 subprocess.run(run_simulation_line)
+LTSPICE_RAW_DATA_PATH = os.path.join(os.path.dirname(SCRIPT_PATH), "AC_R_circuit/AC_R_circuit.raw")
 
 with open(LTSPICE_RAW_DATA_PATH, 'r') as file:
     data = file.read()
@@ -106,7 +126,10 @@ header_dict, value_lines = parse_LTspice_data(data)
 print("Header:")
 pprint.pprint(header_dict)
 
-print("\nValues:")
-pprint.pprint(value_lines)
+# print("\nValues:")
+# pprint.pprint(value_lines)
 
 find_peak_of_each_value(header_dict, value_lines, is_absolute=True)
+
+# Restore the original asc file
+set_to_original_asc_text(asc_file_path=LTSPICE_ASC_PATH, data=ORIGINAL_ASC_TEXT)
